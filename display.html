@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIVE Leaderboard</title>
+    <style>
+        /* =========================================
+           1. SETUP LAYAR
+           ========================================= */
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #2c1e0e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+
+        .board-container {
+            position: relative;
+            /* Mengunci rasio agar gambar tidak gepeng */
+            aspect-ratio: 9 / 16;
+            height: 95vh;
+            width: auto;
+
+            background-image: url('assets/images/leaderboard.png');
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* =========================================
+           2. AREA LIST (POSISI GLOBAL)
+           ========================================= */
+        .list-wrapper {
+            position: absolute;
+            
+            /* --- [KALIBRASI POSISI] --- */
+            /* Sesuaikan top/left ini jika teks kurang pas dengan gambar background */
+            top: 26.5%;     
+            left: 16%;      
+            width: 66%;     
+            height: 56.5%;  
+            /* --------------------------- */
+
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; 
+        }
+
+        /* =========================================
+           3. ITEM BARIS (ROW)
+           ========================================= */
+        .score-item {
+            display: flex;
+            flex-direction: row; /* Kiri ke Kanan */
+            align-items: center;
+            width: 100%;
+            height: 10%; /* Tinggi per baris */
+
+            color: #fff;
+            font-weight: 800;
+            font-size: 2.5vh; /* Ukuran font disesuaikan */
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+        }
+
+        /* --- KOTAK MERAH (NOMOR & NAMA) --- */
+        .name-area {
+            width: 53%; /* Area Merah */
+            height: 100%;
+            display: flex;
+            align-items: center;
+            
+            /* Padding agar teks masuk ke dalam kotak merah (tidak mepet kiri) */
+            padding-left: 20px; 
+            box-sizing: border-box; 
+        }
+
+        /* Angka Urutan (1, 2, 3...) */
+        .rank-num {
+            min-width: 60px; /* Lebar tetap agar nama lurus */
+            text-align: center;
+            margin-right: 5px;
+            color: #fff; /* Warna Angka */
+        }
+
+        /* Teks Nama */
+        .player-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-transform: uppercase;
+            flex-grow: 1; /* Mengisi sisa ruang */
+        }
+
+        /* --- KOTAK KUNING (SKOR) --- */
+        .score-area {
+            width: 47%; /* Area Kuning */
+            height: 100%;
+            display: flex;
+            justify-content: center; /* Tengah Horizontal */
+            align-items: center;     /* Tengah Vertikal */
+            
+            letter-spacing: 1px;
+            padding-right: 5px; /* Sedikit jarak dari kanan jika perlu */
+        }
+
+        /* =========================================
+           4. TOMBOL HAPUS
+           ========================================= */
+        .btn-reset {
+            position: absolute;
+            bottom: 6%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(180deg, #e74c3c, #c0392b);
+            color: white;
+            border: 2px solid #fff;
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 1.8vh;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+            z-index: 100;
+            transition: transform 0.1s;
+        }
+
+        .btn-reset:hover {
+            transform: translateX(-50%) scale(1.05);
+            background: linear-gradient(180deg, #ff6b6b, #ee5253);
+        }
+
+        .btn-reset:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="board-container">
+        <div class="list-wrapper" id="list-wrapper">
+            </div>
+
+        <button onclick="resetData()" class="btn-reset">
+            🗑️ Hapus History
+        </button>
+    </div>
+
+    <script>
+        window.isDisplayMode = true;
+        const displayChannel = new BroadcastChannel('flavour_game_channel');
+
+        function renderLeaderboardList() {
+            const container = document.getElementById('list-wrapper');
+            if (!container) return;
+            container.innerHTML = "";
+
+            let db = JSON.parse(localStorage.getItem('flavourGameLeaderboard')) || [];
+            const MAX_SLOTS = 7;
+
+            for (let i = 0; i < MAX_SLOTS; i++) {
+                const row = document.createElement('div');
+                row.classList.add('score-item');
+
+                let pName = "-";
+                let pScore = "0";
+
+                if (db[i]) {
+                    pName = db[i].name;
+                    pScore = db[i].score;
+                }
+
+                // PERUBAHAN DI SINI:
+                // 1. Menghapus '#' sebelum ${i + 1}
+                // 2. Struktur HTML disesuaikan dengan CSS baru (name-area & score-area)
+                row.innerHTML = `
+                    <div class="name-area">
+                        <span class="rank-num">${i + 1}</span>
+                        <span class="player-name">${pName}</span>
+                    </div>
+                    <div class="score-area">
+                        ${pScore}
+                    </div>
+                `;
+                container.appendChild(row);
+            }
+        }
+
+        displayChannel.onmessage = (event) => {
+            if (event.data === 'update_leaderboard') renderLeaderboardList();
+        };
+
+        function resetData() {
+            if (confirm("Yakin hapus SEMUA history skor?")) {
+                localStorage.removeItem('flavourGameLeaderboard');
+                renderLeaderboardList();
+            }
+        }
+
+        renderLeaderboardList();
+    </script>
+</body>
+</html>
